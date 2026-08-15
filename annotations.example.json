@@ -1,0 +1,16 @@
+{
+  "reported_symptom": {
+    "log": "example.csv",
+    "near_end_s": 15,
+    "detail_tail_s": 30
+  },
+  "inspection_windows": [
+    {
+      "log": "example.csv",
+      "start_s": 100,
+      "end_s": 105,
+      "context_s": 3,
+      "label": "Driver-noted behavior"
+    }
+  ]
+}
