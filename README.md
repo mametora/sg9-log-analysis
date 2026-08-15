@@ -4,24 +4,23 @@ Subaru Forester SG9（TA-SG9 / MT / 国内仕様）のRomRaiderログから、�
 
 ## セットアップ
 
-Python 3.9以降を使用します。
+[uv](https://docs.astral.sh/uv/) を使用します。Python 3.14が未導入の場合もuvが取得します。
 
 ```bash
-python3 -m venv .venv
-.venv/bin/pip install -r requirements.txt
+uv sync
 ```
 
 CSVを `data/raw/` に置き、次を実行します。
 
 ```bash
-.venv/bin/python -m src.analysis data/raw/*.csv
+uv run python -m src.analysis data/raw/*.csv
 ```
 
 体感申告ログや追加確認区間をレポートへ反映する場合は、公開用サンプルをコピーしてローカル注釈を作ります。
 
 ```bash
 cp annotations.example.json annotations.local.json
-.venv/bin/python -m src.analysis data/raw/*.csv --annotations annotations.local.json
+uv run python -m src.analysis data/raw/*.csv --annotations annotations.local.json
 ```
 
 `annotations.local.json` には実際のログ名や経過秒を記載します。このファイルはGit管理対象外で、解析ロジックにはログ取得日時を埋め込みません。
@@ -41,7 +40,7 @@ cp annotations.example.json annotations.local.json
 別の出力先を使う場合は `--output` を指定します。
 
 ```bash
-.venv/bin/python -m src.analysis data/raw/*.csv --output /tmp/sg9-analysis
+uv run python -m src.analysis data/raw/*.csv --output /tmp/sg9-analysis
 ```
 
 ## 実装上の扱い
@@ -56,8 +55,10 @@ cp annotations.example.json annotations.local.json
 ## テスト
 
 ```bash
-.venv/bin/python -m unittest discover -s tests -v
+uv run python -m unittest discover -s tests -v
 ```
+
+`pyproject.toml` が直接依存関係、`uv.lock` が解決済みの全依存関係を管理します。Jupyterを除いた実行環境だけが必要な場合は `uv sync --no-dev` を使用します。
 
 生ログ、ローカル注釈、仮想環境、生成物はGit管理対象外です。コードと一般的な解析条件をGitで管理し、ログ追加時に同じコマンドで再解析できます。
 
