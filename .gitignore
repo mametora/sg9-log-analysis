@@ -10,7 +10,4 @@ __pycache__/
 data/raw/*
 data/processed/*
 !data/processed/.gitkeep
-output/plots/*
-!output/plots/.gitkeep
-output/reports/*
-!output/reports/.gitkeep
+output/

@@ -63,6 +63,12 @@ uv run python -m unittest discover -s tests -v
 
 生ログ、ローカル注釈、仮想環境、生成物はGit管理対象外です。コードと一般的な解析条件をGitで管理し、ログ追加時に同じコマンドで再解析できます。
 
+`output/` は日付別の出力も含め、全体をGit管理対象外にしています。
+既存の追跡済み `.gitkeep` は、空の出力先を保持するために残しています。
+保存するコードや分析記録は `output/` に置かず、`scripts/` や `docs/` に分けます。
+2026年9月12日の比較コードと注意点は [比較スクリプトの説明](scripts/comparison_20260912/README.md)、
+当時の記録は [MAF交換前後比較](docs/analysis/20260912/MAF交換前後比較.md) を参照してください。
+
 ## License
 
 [MIT License](LICENSE)
