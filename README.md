@@ -33,6 +33,7 @@ uv run python -m src.analysis data/raw/*.csv --annotations annotations.local.jso
 - `output/reports/event_samples_with_maf_reference.csv`: 条件付きMAF期待値と残差
 - `output/reports/knock_changes.csv`: Knock Sum変化時刻と前後3秒窓
 - `output/reports/learning_summary.csv`: IAM・FLKC・取得できた学習値のログ間比較
+- `output/reports/knock_timing_summary.csv`: 負荷中の補正値・点火時期の大きな隣接変化とKnock Sum増加回数
 - `output/reports/reported_core_comparison.csv`: 体感区間と条件を合わせた他ログの比較
 - `output/reports/initial_analysis.md`: 初期解析レポート
 - `output/plots/`: 全体波形、終盤詳細、MAF関係図、候補比較

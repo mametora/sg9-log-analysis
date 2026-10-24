@@ -14,7 +14,75 @@ from scipy.spatial import cKDTree
 from .annotations import AnalysisAnnotations, ReportedSymptom, load_annotations
 from .events import extract_events, knock_change_windows
 from .loader import LoadedLog, inventory_frame, load_logs, statistics_frame
-from .plots import plot_end_detail, plot_event_comparison, plot_maf_relationships, plot_overview
+from .plots import (
+    plot_end_detail,
+    plot_event_comparison,
+    plot_high_load_boost,
+    plot_knock_correction_timeline,
+    plot_knock_timing_compact_summary,
+    plot_knock_timing_transition_summary,
+    plot_maf_relationships,
+    plot_overview,
+    plot_reported_timing_detail,
+)
+
+
+def _knock_timing_summary(logs: Sequence[LoadedLog]) -> pd.DataFrame:
+    """Summarize correction switching during load without treating it as knock."""
+    rows = []
+    for log in logs:
+        data = log.data
+        if data.empty or "time_s" not in data:
+            continue
+        dt = data["time_s"].diff()
+        loaded = pd.Series(True, index=data.index)
+        if "rpm" in data:
+            loaded &= data["rpm"] >= 1500.0
+        if "throttle" in data:
+            loaded &= data["throttle"] >= 30.0
+        adjacent_loaded = loaded & loaded.shift(fill_value=False) & dt.between(0.001, 0.2)
+        loaded_minutes = float(dt.where(adjacent_loaded).sum() / 60.0)
+        row = {
+            "log": log.metadata.path.name,
+            "loaded_minutes": loaded_minutes,
+            "knock_sum_increases": 0,
+            "knock_sum_positive_delta": 0.0,
+        }
+        if "knock_sum" in data:
+            delta = data["knock_sum"].diff()
+            knock_valid = data["knock_sum"].notna() & data["knock_sum"].shift().notna() & dt.between(0.001, 0.2)
+            knock_minutes = float(dt.where(knock_valid).sum() / 60.0)
+            positive = (delta > 0) & knock_valid
+            row["knock_sum_increases"] = int(positive.sum())
+            row["knock_sum_positive_delta"] = float(delta.where(positive, 0).sum())
+            row["knock_logged_minutes"] = knock_minutes
+            row["knock_sum_increases_per_min"] = int(positive.sum()) / knock_minutes if knock_minutes > 0 else np.nan
+        else:
+            row["knock_logged_minutes"] = np.nan
+            row["knock_sum_increases_per_min"] = np.nan
+
+        for channel, prefix, threshold in [
+            ("fbkc", "fbkc", 2.0),
+            ("flkc", "flkc", 2.0),
+            ("knock_correction_advance", "kca", 2.0),
+            ("ignition_timing", "ignition", 5.0),
+        ]:
+            if channel not in data or data[channel].dropna().empty:
+                row[f"{prefix}_min"] = np.nan
+                row[f"{prefix}_max"] = np.nan
+                row[f"{prefix}_large_steps"] = np.nan
+                row[f"{prefix}_large_steps_per_min"] = np.nan
+                continue
+            series = data[channel]
+            valid = adjacent_loaded & series.notna() & series.shift().notna()
+            step = series.diff().abs().where(valid)
+            count = int((step >= threshold).sum())
+            row[f"{prefix}_min"] = float(series.min())
+            row[f"{prefix}_max"] = float(series.max())
+            row[f"{prefix}_large_steps"] = count
+            row[f"{prefix}_large_steps_per_min"] = count / loaded_minutes if loaded_minutes > 0 else np.nan
+        rows.append(row)
+    return pd.DataFrame(rows)
 
 def _event_samples(logs: Sequence[LoadedLog], events: pd.DataFrame) -> pd.DataFrame:
     parts: List[pd.DataFrame] = []
@@ -477,6 +545,8 @@ def run(
     knock_changes.to_csv(report_dir / "knock_changes.csv", index=False)
     learning = _learning_summary(logs)
     learning.to_csv(report_dir / "learning_summary.csv", index=False)
+    knock_timing = _knock_timing_summary(logs)
+    knock_timing.to_csv(report_dir / "knock_timing_summary.csv", index=False)
     core_summary, core_metrics = _reported_core_analysis(logs, annotations.reported_symptom)
     core_metrics.to_csv(report_dir / "reported_core_comparison.csv", index=False)
 
@@ -492,10 +562,28 @@ def run(
             plot_dir,
             seconds=reported.detail_tail_s,
         )
+        highlight = None
+        if core_summary:
+            highlight = (core_summary["start_s"], core_summary["end_s"])
+        plot_reported_timing_detail(
+            log_map[reported.log],
+            Path(reported.log).stem,
+            plot_dir,
+            seconds=reported.detail_tail_s,
+            highlight=highlight,
+        )
     if not samples.empty:
         sample_flags = samples["event_id"].map(events.set_index("event_id")["is_suspicious"]).fillna(False)
         samples["is_suspicious"] = sample_flags.astype(bool)
         plot_maf_relationships(samples, plot_dir)
+    plot_high_load_boost(log_map, plot_dir)
+    plot_knock_correction_timeline(log_map, plot_dir)
+    plot_knock_timing_transition_summary(knock_timing, plot_dir)
+    plot_knock_timing_compact_summary(
+        knock_timing,
+        plot_dir,
+        reported_log=reported.log if reported is not None else None,
+    )
     plot_event_comparison(_matching_events(events), log_map, plot_dir)
 
     _write_report(
