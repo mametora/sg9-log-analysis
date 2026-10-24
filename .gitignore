@@ -11,3 +11,4 @@ data/raw/*
 data/processed/*
 !data/processed/.gitkeep
 output/
+.local/desktop/
